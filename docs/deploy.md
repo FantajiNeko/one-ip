@@ -120,16 +120,19 @@ Workers Builds 和 GitHub Actions 选择一种部署方式，避免重复发布�
 
 1. 在 Fork 的 Actions 页面启用工作流。
 2. 在 Settings → Secrets and variables → Actions → **Variables** 添加 `AUTO_SYNC_UPSTREAM=true`。
-3. 工作流在每天 UTC 04:23 检查更新。Actions 页面提供运行入口。
+3. 在同一页面的 **Secrets** 添加 `UPSTREAM_SYNC_TOKEN`，用于同步上游的工作流文件。推荐创建仅允许访问当前 Fork 的 fine-grained PAT，授予 **Contents: Read and write** 与 **Workflows: Read and write**；也可使用具有 `repo` 和 `workflow` scope 的 classic PAT。
+4. 工作流在每天 UTC 04:23 检查更新。Actions 页面提供运行入口。
 
-支持范围是从 `zhihui-hu/one-ip` 创建的 Fork，无需个人访问令牌（PAT）。工作流通过 GitHub 的 `merge-upstream` 接口合并更新，遇到冲突时停止，保留你的提交。需要审核更新时，使用 GitHub 的 Sync fork。
+支持范围是从 `zhihui-hu/one-ip` 创建的 Fork。工作流通过 GitHub 的 `merge-upstream` 接口合并更新，遇到冲突时停止，保留你的提交。需要审核更新时，使用 GitHub 的 Sync fork。
+
+`UPSTREAM_SYNC_TOKEN` 仅用于合并请求，其他 API 调用仍使用内置 `GITHUB_TOKEN`。未设置时会回退到内置凭据，但它无法合并 `.github/workflows/` 文件的更新；`contents: write` 和 `actions: write` 也不会授予修改工作流文件的权限。这类更新会导致 HTTP 422，并提示配置 Secret。令牌过期或被撤销后，需要更新此 Secret。
 
 - **Workers Builds**：连接 Fork 的生产分支，在 Cloudflare 构建历史中检查同步提交的部署记录。
-- **GitHub Actions 部署**：同步产生更新时，工作流触发部署任务。`GITHUB_TOKEN` 产生的推送不会触发普通 `push` 工作流。
+- **GitHub Actions 部署**：使用自定义令牌同步时，更新会触发普通 `push` 工作流；使用内置 `GITHUB_TOKEN` 时，若 `ENABLE_CF_DEPLOY=true`，同步任务会显式触发部署，避免重复执行。
 - 分支保护阻止合并时，通过 PR 处理。
 - Fork 的定时工作流需要启用。公开仓库 60 天无活动可能导致 GitHub 停用定时任务，恢复入口在 Actions 页面。
 
-参考：[同步 Fork](https://docs.github.com/en/pull-requests/how-tos/work-with-forks/syncing-a-fork)、[GITHUB_TOKEN 触发规则](https://docs.github.com/en/actions/concepts/security/github_token)、[定时工作流停用规则](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/disable-and-enable-workflows)。
+参考：[同步 Fork](https://docs.github.com/en/pull-requests/how-tos/work-with-forks/syncing-a-fork)、[GITHUB_TOKEN 与额外权限](https://docs.github.com/en/actions/tutorials/authenticate-with-github_token)、[GITHUB_TOKEN 触发规则](https://docs.github.com/en/actions/concepts/security/github_token)、[定时工作流停用规则](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/disable-and-enable-workflows)。
 
 ## WebMCP
 

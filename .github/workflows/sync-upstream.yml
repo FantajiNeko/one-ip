@@ -22,6 +22,7 @@ jobs:
       actions: write
     env:
       GH_TOKEN: ${{ github.token }}
+      UPSTREAM_SYNC_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
       REPO: ${{ github.repository }}
       ENABLE_CF_DEPLOY: ${{ vars.ENABLE_CF_DEPLOY }}
     steps:
@@ -38,9 +39,18 @@ jobs:
           fi
           before=$(gh api "repos/$REPO/commits/$branch" --jq '.sha')
           # The GitHub merge-upstream endpoint fails on conflicts; no force reset.
-          gh api --method POST "repos/$REPO/merge-upstream" -f branch="$branch"
+          # Workflow updates require a token with Workflows write permission.
+          if ! result=$(GH_TOKEN="${UPSTREAM_SYNC_TOKEN:-$GH_TOKEN}" gh api --method POST "repos/$REPO/merge-upstream" -f branch="$branch" 2>&1); then
+            printf '%s\n' "$result" >&2
+            if [[ "$result" == *workflow* && ( "$result" == *permission* || "$result" == *scope* ) ]]; then
+              echo '::error::Upstream workflow updates require the UPSTREAM_SYNC_TOKEN repository secret with Contents and Workflows read/write permissions. See docs/deploy.md.' >&2
+            fi
+            exit 1
+          fi
+          printf '%s\n' "$result"
           after=$(gh api "repos/$REPO/commits/$branch" --jq '.sha')
-          if [ "$before" != "$after" ] && [ "$ENABLE_CF_DEPLOY" = 'true' ]; then
+          if [ "$before" != "$after" ] && [ "$ENABLE_CF_DEPLOY" = 'true' ] && [ -z "${UPSTREAM_SYNC_TOKEN:-}" ]; then
             # GITHUB_TOKEN pushes do not trigger push workflows. Dispatch explicitly.
+            # A custom token triggers push workflows, so do not deploy twice.
             gh workflow run pages.yml --repo "$REPO" --ref "$branch"
           fi

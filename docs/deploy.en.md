@@ -120,16 +120,19 @@ For scheduled updates, enable `Sync upstream`:
 
 1. Enable workflows in your fork's Actions tab.
 2. Under Settings → Secrets and variables → Actions → **Variables**, add `AUTO_SYNC_UPSTREAM=true`.
-3. The workflow checks for updates at 04:23 UTC each day. You can run it from the Actions page.
+3. Under **Secrets** on the same page, add `UPSTREAM_SYNC_TOKEN` to synchronize upstream workflow files. Prefer a fine-grained PAT restricted to this fork with **Contents: Read and write** and **Workflows: Read and write**. A classic PAT with the `repo` and `workflow` scopes also works.
+4. The workflow checks for updates at 04:23 UTC each day. You can run it from the Actions page.
 
-The workflow supports forks created from `zhihui-hu/one-ip` and requires no personal access token. It uses GitHub's `merge-upstream` API, stops on conflicts and preserves your commits. Use GitHub's Sync fork if you want to review updates.
+The workflow supports forks created from `zhihui-hu/one-ip`. It uses GitHub's `merge-upstream` API, stops on conflicts and preserves your commits. Use GitHub's Sync fork if you want to review updates.
+
+`UPSTREAM_SYNC_TOKEN` is used only for the merge request; other API calls keep using the built-in `GITHUB_TOKEN`. Without the secret, synchronization falls back to the built-in token, which cannot merge updates to `.github/workflows/` files. Neither `contents: write` nor `actions: write` grants permission to modify workflow files. Those updates fail with HTTP 422 and a message explaining which secret to configure. Update the secret if the token expires or is revoked.
 
 - **Workers Builds:** connect your fork's production branch and check deployment records for synchronized commits in Cloudflare's build history.
-- **GitHub Actions deployment:** the sync workflow triggers deployment when it merges updates. Pushes made with `GITHUB_TOKEN` do not trigger ordinary `push` workflows.
+- **GitHub Actions deployment:** updates merged with a custom token trigger the ordinary `push` workflow. With the built-in `GITHUB_TOKEN`, the sync job explicitly dispatches deployment when `ENABLE_CF_DEPLOY=true`, avoiding duplicate runs.
 - If branch protection blocks a merge, use a PR.
 - Enable scheduled workflows in your fork. GitHub may disable schedules after 60 days of inactivity in a public repository; use the Actions page to enable them.
 
-References: [Syncing a fork](https://docs.github.com/en/pull-requests/how-tos/work-with-forks/syncing-a-fork), [GITHUB_TOKEN triggering behavior](https://docs.github.com/en/actions/concepts/security/github_token), [Workflow disabling rules](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/disable-and-enable-workflows).
+References: [Syncing a fork](https://docs.github.com/en/pull-requests/how-tos/work-with-forks/syncing-a-fork), [GITHUB_TOKEN and additional permissions](https://docs.github.com/en/actions/tutorials/authenticate-with-github_token), [GITHUB_TOKEN triggering behavior](https://docs.github.com/en/actions/concepts/security/github_token), [Workflow disabling rules](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/disable-and-enable-workflows).
 
 ## WebMCP
 
